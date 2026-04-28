@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Grocery List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #f5f5f4;
+            color: #3d3d3d;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d2d2d;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d4d4d4;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #fff;
+            color: #3d3d3d;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row input:focus {
+            border-color: #8b8b8b;
+        }
+
+        .input-row input::placeholder {
+            color: #a3a3a3;
+        }
+
+        .btn {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-add {
+            background: #4a4a4a;
+            color: #fff;
+        }
+
+        .btn-add:hover {
+            background: #3a3a3a;
+        }
+
+        .list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: opacity 0.2s;
+        }
+
+        .list-item.checked {
+            opacity: 0.5;
+        }
+
+        .list-item.checked .item-text {
+            text-decoration: line-through;
+            color: #9a9a9a;
+        }
+
+        .list-item input[type="checkbox"] {
+            width: 1.2rem;
+            height: 1.2rem;
+            cursor: pointer;
+            accent-color: #6b6b6b;
+        }
+
+        .item-text {
+            flex: 1;
+            font-size: 1rem;
+        }
+
+        .btn-remove {
+            background: none;
+            border: none;
+            color: #b0b0b0;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+            border-radius: 4px;
+            transition: color 0.2s, background 0.2s;
+        }
+
+        .btn-remove:hover {
+            color: #666;
+            background: #f0f0f0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-share {
+            background: #fff;
+            border: 1px solid #d4d4d4;
+            color: #4a4a4a;
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .btn-share:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-clear {
+            background: #fff;
+            border: 1px solid #d4d4d4;
+            color: #999;
+        }
+
+        .btn-clear:hover {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 360px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .modal h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #2d2d2d;
+        }
+
+        .modal p {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 1rem;
+        }
+
+        #qr-img {
+            margin: 0 auto 1rem;
+            display: block;
+            width: 200px;
+            height: 200px;
+        }
+
+        .modal .btn {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #a3a3a3;
+            font-size: 0.95rem;
+        }
+
+        .item-count {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #a3a3a3;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Grocery List</h1>
+
+        <div class="input-row">
+            <input type="text" id="item-input" placeholder="Add an item..." autocomplete="off">
+            <button class="btn btn-add" onclick="addItem()">Add</button>
+        </div>
+
+        <div class="item-count" id="item-count"></div>
+
+        <ul class="list" id="grocery-list"></ul>
+
+        <div class="actions" id="actions" style="display:none;">
+            <button class="btn btn-share" onclick="emailList()">Email to phone</button>
+            <button class="btn btn-share" onclick="showQR()">Show QR code</button>
+            <button class="btn btn-clear" onclick="clearChecked()">Clear bought</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal" onclick="closeModal(event)">
+        <div class="modal">
+            <h2>Scan with your phone</h2>
+            <p>This opens your grocery list ready to check off items</p>
+            <img id="qr-img" alt="QR Code">
+            <button class="btn btn-add" onclick="document.getElementById('modal').classList.remove('active')">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let items = JSON.parse(localStorage.getItem('grocery-items') || '[]');
+
+        function save() {
+            localStorage.setItem('grocery-items', JSON.stringify(items));
+        }
+
+        function render() {
+            const list = document.getElementById('grocery-list');
+            const actions = document.getElementById('actions');
+            const count = document.getElementById('item-count');
+
+            if (items.length === 0) {
+                list.innerHTML = '<li class="empty-state">Your list is empty</li>';
+                actions.style.display = 'none';
+                count.textContent = '';
+                return;
+            }
+
+            const checked = items.filter(i => i.checked).length;
+            count.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}${checked ? ` \u00b7 ${checked} bought` : ''}`;
+
+            list.innerHTML = items.map((item, idx) => `
+                <li class="list-item ${item.checked ? 'checked' : ''}">
+                    <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem(${idx})">
+                    <span class="item-text">${escapeHtml(item.name)}</span>
+                    <button class="btn-remove" onclick="removeItem(${idx})">&times;</button>
+                </li>
+            `).join('');
+
+            actions.style.display = 'flex';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addItem() {
+            const input = document.getElementById('item-input');
+            const name = input.value.trim();
+            if (!name) return;
+            items.push({ name, checked: false });
+            input.value = '';
+            save();
+            render();
+            input.focus();
+        }
+
+        function removeItem(idx) {
+            items.splice(idx, 1);
+            save();
+            render();
+        }
+
+        function toggleItem(idx) {
+            items[idx].checked = !items[idx].checked;
+            save();
+            render();
+        }
+
+        function clearChecked() {
+            items = items.filter(i => !i.checked);
+            save();
+            render();
+        }
+
+        function buildShareUrl() {
+            const unchecked = items.filter(i => !i.checked);
+            const listData = unchecked.map(i => i.name).join('|');
+            const encoded = encodeURIComponent(listData);
+            return window.location.origin + window.location.pathname + '?list=' + encoded;
+        }
+
+        function emailList() {
+            const url = buildShareUrl();
+            const unchecked = items.filter(i => !i.checked);
+            const subject = encodeURIComponent('Grocery List');
+            const body = encodeURIComponent(
+                'Open this link to view your grocery list:\n\n' + url +
+                '\n\n---\nItems:\n' + unchecked.map(i => '- ' + i.name).join('\n')
+            );
+            window.open(`mailto:?subject=${subject}&body=${body}`);
+        }
+
+        function showQR() {
+            const url = buildShareUrl();
+            const img = document.getElementById('qr-img');
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal(e) {
+            if (e.target === e.currentTarget) {
+                e.currentTarget.classList.remove('active');
+            }
+        }
+
+        // Load items from URL if shared
+        function loadFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const listParam = params.get('list');
+            if (listParam) {
+                const names = decodeURIComponent(listParam).split('|').filter(Boolean);
+                items = names.map(name => ({ name, checked: false }));
+                save();
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        }
+
+        document.getElementById('item-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addItem();
+        });
+
+        loadFromUrl();
+        render();
+    </script>
+</body>
+</html>
