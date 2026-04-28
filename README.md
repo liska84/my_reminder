@@ -7,6 +7,7 @@ A simple web app for managing your shopping list. Build your list on your comput
 - Add and remove grocery items
 - Check off items as you buy them
 - Share your list to your phone via QR code or email link
+- Send your list to Telegram for instant phone notifications
 - Data persists in your browser between sessions
 - Works on any device with a browser
 
@@ -116,11 +117,24 @@ iconutil -c icns /tmp/AppIcon.iconset -o GroceryList.app/Contents/Resources/AppI
 1. Move `GroceryList.app` to your Desktop or `/Applications`
 2. Drag it into your Dock
 
+## Telegram Setup
+
+You can send your grocery list directly to Telegram for instant notifications on your phone.
+
+1. Open Telegram and message [@BotFather](https://t.me/BotFather)
+2. Send `/newbot` and follow the prompts to create a bot
+3. Copy the bot token BotFather gives you
+4. Send `/start` to your new bot
+5. Visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` — find your chat ID in the JSON response under `"chat":{"id":...}`
+6. In the app, click the gear icon (⚙), paste your bot token and chat ID, and hit Save
+
+Your credentials are stored only in your browser's localStorage — they never leave your device except when sending a message to Telegram.
+
 ## Usage
 
 1. Open the app (click the Dock icon or visit the URL)
 2. Type an item name and click **Add** (or press Enter)
-3. When ready to shop, click **Show QR code** and scan with your phone, or click **Email to phone** to send yourself the link
+3. When ready to shop, click **Show QR code** and scan with your phone, click **Email to phone**, or click **Send to Telegram**
 4. On your phone, check off items as you buy them
 5. Back on your computer, click **Clear bought** to remove purchased items
 
