@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https://api.qrserver.com;">
     <title>My Grocery List</title>
     <style>
         * {
@@ -260,7 +261,23 @@
     </div>
 
     <script>
-        let items = JSON.parse(localStorage.getItem('grocery-items') || '[]');
+        const MAX_ITEM_LENGTH = 100;
+        const MAX_ITEMS = 200;
+
+        function loadItems() {
+            try {
+                const raw = JSON.parse(localStorage.getItem('grocery-items') || '[]');
+                if (!Array.isArray(raw)) return [];
+                return raw
+                    .filter(i => i && typeof i.name === 'string' && typeof i.checked === 'boolean')
+                    .map(i => ({ name: i.name.slice(0, MAX_ITEM_LENGTH), checked: i.checked }))
+                    .slice(0, MAX_ITEMS);
+            } catch {
+                return [];
+            }
+        }
+
+        let items = loadItems();
 
         function save() {
             localStorage.setItem('grocery-items', JSON.stringify(items));
@@ -300,8 +317,9 @@
 
         function addItem() {
             const input = document.getElementById('item-input');
-            const name = input.value.trim();
+            const name = input.value.trim().slice(0, MAX_ITEM_LENGTH);
             if (!name) return;
+            if (items.length >= MAX_ITEMS) return;
             items.push({ name, checked: false });
             input.value = '';
             save();
@@ -310,12 +328,14 @@
         }
 
         function removeItem(idx) {
+            if (idx < 0 || idx >= items.length) return;
             items.splice(idx, 1);
             save();
             render();
         }
 
         function toggleItem(idx) {
+            if (idx < 0 || idx >= items.length) return;
             items[idx].checked = !items[idx].checked;
             save();
             render();
@@ -360,13 +380,18 @@
 
         // Load items from URL if shared
         function loadFromUrl() {
-            const params = new URLSearchParams(window.location.search);
-            const listParam = params.get('list');
-            if (listParam) {
-                const names = decodeURIComponent(listParam).split('|').filter(Boolean);
-                items = names.map(name => ({ name, checked: false }));
-                save();
-                window.history.replaceState({}, '', window.location.pathname);
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const listParam = params.get('list');
+                if (listParam) {
+                    const decoded = decodeURIComponent(listParam);
+                    const names = decoded.split('|').filter(Boolean).slice(0, MAX_ITEMS);
+                    items = names.map(name => ({ name: name.slice(0, MAX_ITEM_LENGTH), checked: false }));
+                    save();
+                    window.history.replaceState({}, '', window.location.pathname);
+                }
+            } catch {
+                // Malformed URL parameter — ignore
             }
         }
 
