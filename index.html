@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https://api.qrserver.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https://api.qrserver.com; connect-src https://api.telegram.org;">
     <title>My Grocery List</title>
     <style>
         * {
@@ -229,11 +229,102 @@
             color: #a3a3a3;
             margin-bottom: 1rem;
         }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .header h1 {
+            margin-bottom: 0;
+        }
+
+        .btn-gear {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #a3a3a3;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: color 0.2s;
+        }
+
+        .btn-gear:hover {
+            color: #4a8c6f;
+        }
+
+        .settings-modal {
+            text-align: left;
+        }
+
+        .settings-modal h2 {
+            text-align: center;
+        }
+
+        .settings-modal label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 0.25rem;
+            margin-top: 0.75rem;
+        }
+
+        .settings-modal input {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid #d4d4d4;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .settings-modal input:focus {
+            border-color: #5a9e7c;
+        }
+
+        .settings-modal .instructions {
+            font-size: 0.78rem;
+            color: #888;
+            margin-top: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d6b4f;
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.error {
+            background: #a04040;
+        }
+
+        .toast.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Grocery List</h1>
+        <div class="header">
+            <h1>Grocery List</h1>
+            <button class="btn-gear" onclick="openSettings()" title="Telegram settings">&#9881;</button>
+        </div>
 
         <div class="input-row">
             <input type="text" id="item-input" placeholder="Add an item..." autocomplete="off">
@@ -247,6 +338,7 @@
         <div class="actions" id="actions" style="display:none;">
             <button class="btn btn-share" onclick="emailList()">Email to phone</button>
             <button class="btn btn-share" onclick="showQR()">Show QR code</button>
+            <button class="btn btn-share" onclick="sendTelegram()">Send to Telegram</button>
             <button class="btn btn-clear" onclick="clearChecked()">Clear bought</button>
         </div>
     </div>
@@ -259,6 +351,26 @@
             <button class="btn btn-add" onclick="document.getElementById('modal').classList.remove('active')">Close</button>
         </div>
     </div>
+
+    <div class="modal-overlay" id="settings-modal" onclick="closeModal(event)">
+        <div class="modal settings-modal">
+            <h2>Telegram Setup</h2>
+            <label for="tg-token-input">Bot Token</label>
+            <input type="text" id="tg-token-input" placeholder="123456:ABC-DEF...">
+            <label for="tg-chat-input">Chat ID</label>
+            <input type="text" id="tg-chat-input" placeholder="e.g. 123456789">
+            <p class="instructions">
+                1. Message @BotFather on Telegram, send /newbot<br>
+                2. Copy the bot token above<br>
+                3. Send /start to your new bot<br>
+                4. Visit https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates to find your chat ID
+            </p>
+            <button class="btn btn-add" onclick="saveSettings()">Save</button>
+            <button class="btn btn-share" onclick="document.getElementById('settings-modal').classList.remove('active')" style="margin-top:0.5rem;width:100%">Cancel</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
 
     <script>
         const MAX_ITEM_LENGTH = 100;
@@ -398,6 +510,59 @@
         document.getElementById('item-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') addItem();
         });
+
+        function openSettings() {
+            document.getElementById('tg-token-input').value = localStorage.getItem('tg-bot-token') || '';
+            document.getElementById('tg-chat-input').value = localStorage.getItem('tg-chat-id') || '';
+            document.getElementById('settings-modal').classList.add('active');
+        }
+
+        function saveSettings() {
+            const token = document.getElementById('tg-token-input').value.trim();
+            const chatId = document.getElementById('tg-chat-input').value.trim();
+            if (token) localStorage.setItem('tg-bot-token', token);
+            else localStorage.removeItem('tg-bot-token');
+            if (chatId) localStorage.setItem('tg-chat-id', chatId);
+            else localStorage.removeItem('tg-chat-id');
+            document.getElementById('settings-modal').classList.remove('active');
+            showToast('Settings saved');
+        }
+
+        function sendTelegram() {
+            const token = localStorage.getItem('tg-bot-token');
+            const chatId = localStorage.getItem('tg-chat-id');
+            if (!token || !chatId) {
+                openSettings();
+                return;
+            }
+            const unchecked = items.filter(i => !i.checked);
+            if (unchecked.length === 0) {
+                showToast('No items to send', true);
+                return;
+            }
+            const url = buildShareUrl();
+            const text = '*Grocery List*\n\n' +
+                unchecked.map(i => '\u2022 ' + i.name).join('\n') +
+                '\n\n[Open list](' + url + ')';
+            fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) showToast('Sent to Telegram!');
+                else showToast('Error: ' + (data.description || 'unknown'), true);
+            })
+            .catch(() => showToast('Network error', true));
+        }
+
+        function showToast(msg, isError) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'toast visible' + (isError ? ' error' : '');
+            setTimeout(() => { el.className = 'toast'; }, 2500);
+        }
 
         loadFromUrl();
         render();
